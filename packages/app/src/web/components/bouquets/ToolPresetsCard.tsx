@@ -55,65 +55,61 @@ function PresetCard({ preset }: { preset: (typeof BOUQUET_PRESETS)[number] }) {
 	return (
 		<div className="border border-border rounded-lg p-4 bg-background">
 			<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-		<div className="space-y-3">
-			<h4 className="font-semibold text-foreground">{preset.label}</h4>
-			<div className="inline-flex items-center gap-2 rounded-md bg-primary/10 text-primary px-2 py-1 text-xs font-mono uppercase tracking-wide">
-				<span>Key</span>
-				<span className="text-foreground/80 normal-case">{preset.key}</span>
-			</div>
-			<p className="text-sm text-muted-foreground">{preset.description}</p>
-			{paramOptions.length > 0 && (
-				<div className="flex flex-wrap items-center gap-2">
-					{paramOptions.map((option) => (
-						<div
-							key={option.param}
-							className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-mono border ${
-								option.label === 'Bouquet'
-									? 'border-sky-300 bg-sky-50/80 text-sky-700 dark:border-sky-400/40 dark:bg-sky-500/10 dark:text-sky-200'
-									: 'border-emerald-300 bg-emerald-50/80 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-200'
-							}`}
-						>
-							<span className="uppercase tracking-wide font-semibold">
-								{option.label}
-							</span>
-							<code>{option.param}</code>
-							<CopyButton
-								content={option.url}
-								iconOnly
-								variant="ghost"
-								size="sm"
-								label={`Copy ${option.param}`}
-								className="h-6 w-6 shrink-0 hover:bg-white/30 dark:hover:bg-white/10"
-							/>
+				<div className="space-y-3">
+					<h4 className="font-semibold text-foreground">{preset.label}</h4>
+					<div className="inline-flex items-center gap-2 rounded-md bg-primary/10 text-primary px-2 py-1 text-xs font-mono uppercase tracking-wide">
+						<span>Key</span>
+						<span className="text-foreground/80 normal-case">{preset.key}</span>
+					</div>
+					<p className="text-sm text-muted-foreground">{preset.description}</p>
+					{paramOptions.length > 0 && (
+						<div className="flex flex-wrap items-center gap-2">
+							{paramOptions.map((option) => (
+								<div
+									key={option.param}
+									className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-mono border ${
+										option.label === 'Bouquet'
+											? 'border-sky-300 bg-sky-50/80 text-sky-700 dark:border-sky-400/40 dark:bg-sky-500/10 dark:text-sky-200'
+											: 'border-emerald-300 bg-emerald-50/80 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-200'
+									}`}
+								>
+									<span className="uppercase tracking-wide font-semibold">{option.label}</span>
+									<code>{option.param}</code>
+									<CopyButton
+										content={option.url}
+										iconOnly
+										variant="ghost"
+										size="sm"
+										label={`Copy ${option.param}`}
+										className="h-6 w-6 shrink-0 hover:bg-white/30 dark:hover:bg-white/10"
+									/>
+								</div>
+							))}
 						</div>
-					))}
-				</div>
-			)}
-			{directParams.length > 0 && (
-				<div className="flex flex-wrap gap-3">
-					{directParams.map((option) => (
-						<div key={option.param} className="space-y-1">
-							<div className="flex items-center gap-2 rounded-lg border border-amber-400/60 bg-amber-50/80 px-3 py-1.5 text-xs font-mono dark:border-amber-300/40 dark:bg-amber-500/10">
-								<span className="uppercase tracking-wide text-amber-700 dark:text-amber-300 font-semibold">
-									Query
-								</span>
-								<code className="text-amber-700 dark:text-amber-200">{option.param}</code>
-								<CopyButton
-									content={`${BASE_URL}${option.param}`}
-									iconOnly
-									variant="ghost"
-									size="sm"
-									label={`Copy ${option.param}`}
-									className="h-6 w-6 shrink-0 hover:bg-amber-100 dark:hover:bg-amber-500/20"
-								/>
-							</div>
-							{option.description && (
-								<p className="text-xs text-muted-foreground">{option.description}</p>
-							)}
+					)}
+					{directParams.length > 0 && (
+						<div className="flex flex-wrap gap-3">
+							{directParams.map((option) => (
+								<div key={option.param} className="space-y-1">
+									<div className="flex items-center gap-2 rounded-lg border border-amber-400/60 bg-amber-50/80 px-3 py-1.5 text-xs font-mono dark:border-amber-300/40 dark:bg-amber-500/10">
+										<span className="uppercase tracking-wide text-amber-700 dark:text-amber-300 font-semibold">
+											Query
+										</span>
+										<code className="text-amber-700 dark:text-amber-200">{option.param}</code>
+										<CopyButton
+											content={`${BASE_URL}${option.param}`}
+											iconOnly
+											variant="ghost"
+											size="sm"
+											label={`Copy ${option.param}`}
+											className="h-6 w-6 shrink-0 hover:bg-amber-100 dark:hover:bg-amber-500/20"
+										/>
+									</div>
+									{option.description && <p className="text-xs text-muted-foreground">{option.description}</p>}
+								</div>
+							))}
 						</div>
-					))}
-				</div>
-			)}
+					)}
 				</div>
 			</div>
 			<div className="mt-4">
@@ -171,6 +167,7 @@ export function ToolPresetsCard() {
 							<code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">x-mcp-bouquet</code>,{' '}
 							<code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">x-mcp-mix</code>, and{' '}
 							<code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">x-mcp-gradio</code>.
+							<code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">x-mcp-timeout</code>.
 						</p>
 						<div className="grid gap-3 md:grid-cols-1">
 							{EXAMPLE_LINKS.map((example) => (

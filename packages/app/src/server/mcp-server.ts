@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { InMemoryTaskStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryTaskStore.js';
 import type { z } from 'zod';
 import { createRequire } from 'module';
 import { whoAmI, type WhoAmI } from '@huggingface/hub';
@@ -80,8 +81,6 @@ export const BOUQUET_ANON_DEFAULT: AppSettings = {
 	spaceTools: DEFAULT_SPACE_TOOLS,
 };
 
-// Bouquet configurations moved to tool-selection-strategy.ts
-
 /**
  * Creates a ServerFactory function that produces McpServer instances with all tools registered
  * The shared ApiClient provides global tool state management across all server instances
@@ -89,6 +88,9 @@ export const BOUQUET_ANON_DEFAULT: AppSettings = {
 export const createServerFactory = (_webServerInstance: WebServer, sharedApiClient: McpApiClient): ServerFactory => {
 	const require = createRequire(import.meta.url);
 	const { version } = require('../../package.json') as { version: string };
+	// Share a single task store across all MCP server instances so long-running tasks survive per-session factories.
+	const taskStore = new InMemoryTaskStore();
+	_webServerInstance.setTaskStore(taskStore);
 
 	return async (
 		headers: Record<string, string> | null,
@@ -103,6 +105,15 @@ export const createServerFactory = (_webServerInstance: WebServer, sharedApiClie
 		logger.debug({ skipGradio, sessionInfo }, '=== CREATING NEW MCP SERVER INSTANCE ===');
 		// Extract auth using shared utility
 		const { hfToken } = extractAuthBouquetAndMix(headers);
+
+		let jobTimeoutSeconds: number | undefined;
+		const timeoutHeader = headers?.['x-mcp-job-timeout'];
+		if (typeof timeoutHeader === 'string') {
+			const parsed = Number.parseInt(timeoutHeader, 10);
+			if (!Number.isNaN(parsed) && (parsed > 0 || parsed === -1)) {
+				jobTimeoutSeconds = parsed;
+			}
+		}
 
 		// Create tool selection strategy
 		const toolSelectionStrategy = new ToolSelectionStrategy(sharedApiClient);
@@ -154,6 +165,7 @@ export const createServerFactory = (_webServerInstance: WebServer, sharedApiClie
 					"The User has access to 'Prompts' that provide ways to summarise various types of " +
 					'Hugging Face hub content, and you may guide them to check this feature. ' +
 					userInfo,
+				taskStore,
 			}
 		);
 
@@ -660,7 +672,9 @@ export const createServerFactory = (_webServerInstance: WebServer, sharedApiClie
 			async (params: z.infer<typeof HF_JOBS_TOOL_CONFIG.schema>) => {
 				// Jobs require authentication - check if user has token
 				const isAuthenticated = !!hfToken;
-				const jobsTool = new HfJobsTool(hfToken, isAuthenticated, username);
+				const jobsTool = new HfJobsTool(hfToken, isAuthenticated, username, {
+					logWaitSeconds: jobTimeoutSeconds,
+				});
 				const result = await jobsTool.execute(params);
 
 				// Log the query with command and result metrics

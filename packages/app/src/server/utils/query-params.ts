@@ -10,6 +10,7 @@ export function extractQueryParamsToHeaders(req: Request, headers: Record<string
 	const mix = req.query.mix as string | undefined;
 	const gradio = req.query.gradio as string | undefined;
 	const forceauth = req.query.forceauth as string | undefined;
+	const jobTimeoutParam = Array.isArray(req.query.jobtimeout) ? req.query.jobtimeout[0] : req.query.jobtimeout;
 	const login = req.query.login;
 	const auth = req.query.auth;
 	const noImageContent = Array.isArray(req.query.no_image_content)
@@ -31,7 +32,17 @@ export function extractQueryParamsToHeaders(req: Request, headers: Record<string
 		if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === '') {
 			headers['x-mcp-no-image-content'] = 'true';
 		}
-}
+	}
+
+	if (typeof jobTimeoutParam === 'string') {
+		const trimmed = jobTimeoutParam.trim();
+		if (trimmed !== '') {
+			const parsed = Number.parseInt(trimmed, 10);
+			if (!Number.isNaN(parsed) && Number.isFinite(parsed) && (parsed > 0 || parsed === -1)) {
+				headers['x-mcp-job-timeout'] = parsed.toString();
+			}
+		}
+	}
 
 	// Check if forceauth, login, or auth appears in the URL (with or without values)
 	if (forceauth || login !== undefined || auth !== undefined) {

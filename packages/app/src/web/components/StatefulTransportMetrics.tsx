@@ -246,10 +246,16 @@ export function StatefulTransportMetrics({ metrics }: StatefulTransportMetricsPr
 								<TableCell className="font-medium text-sm">Total Connections</TableCell>
 								<TableCell className="text-sm font-mono">{metrics.connections.total}</TableCell>
 								<TableCell className="font-medium text-sm">Requests per Minute (tot/3hr/hr)</TableCell>
-								<TableCell className="text-sm font-mono">
-									{metrics.requests.averagePerMinute}/{metrics.requests.last3Hours}/{metrics.requests.lastHour}
-								</TableCell>
-							</TableRow>
+							<TableCell className="text-sm font-mono">
+								{metrics.requests.averagePerMinute}/{metrics.requests.last3Hours}/{metrics.requests.lastHour}
+							</TableCell>
+						</TableRow>
+						<TableRow>
+							<TableCell className="font-medium text-sm">Tasks Active</TableCell>
+							<TableCell className="text-sm font-mono">{metrics.tasks?.active ?? 0}</TableCell>
+							<TableCell className="font-medium text-sm">Tasks Completed</TableCell>
+							<TableCell className="text-sm font-mono">{metrics.tasks?.completed ?? 0}</TableCell>
+						</TableRow>
 							{metrics.sessionLifecycle && (
 								<TableRow>
 									<TableCell className="font-medium text-sm">Sessions New/Res-fail/Del</TableCell>

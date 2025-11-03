@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { JobsApiClient } from './api-client.js';
 import { HfApiError } from '../hf-api-call.js';
-import { runCommand, uvCommand } from './commands/run.js';
+import { runCommand, uvCommand, type JobFollowOptions } from './commands/run.js';
 import { psCommand } from './commands/ps.js';
 import { logsCommand } from './commands/logs.js';
 import { inspectCommand, cancelCommand } from './commands/inspect.js';
@@ -308,7 +308,7 @@ hf_jobs("<command>", {"help": true})
  * Jobs tool configuration
  */
 export const HF_JOBS_TOOL_CONFIG = {
-	name: 'hf_jobs',
+	name: 'hf_jobs_lr',
 	description:
 		'Manage HuggingFace compute jobs. Run commands in Docker containers, ' +
 		'execute Python scripts with UV, schedule and monitor jobs, status and logs. ' +
@@ -339,11 +339,19 @@ export class HfJobsTool {
 	private client: JobsApiClient;
 	private hfToken?: string;
 	private isAuthenticated: boolean;
+	private readonly followOptions?: JobFollowOptions;
 
-	constructor(hfToken?: string, isAuthenticated?: boolean, namespace?: string) {
+	constructor(hfToken?: string, isAuthenticated?: boolean, namespace?: string, options?: { logWaitSeconds?: number }) {
 		this.hfToken = hfToken;
 		this.isAuthenticated = isAuthenticated ?? !!hfToken;
 		this.client = new JobsApiClient(hfToken, namespace);
+		if (options?.logWaitSeconds !== undefined && options.logWaitSeconds !== null) {
+			if (options.logWaitSeconds === -1) {
+				this.followOptions = { waitUntilComplete: true };
+			} else if (options.logWaitSeconds > 0) {
+				this.followOptions = { logWaitMs: options.logWaitSeconds * 1000 };
+			}
+		}
 	}
 
 	/**
@@ -405,11 +413,11 @@ export class HfJobsTool {
 
 			switch (command) {
 				case 'run':
-					result = await runCommand(args as RunArgs, this.client, this.hfToken);
+					result = await runCommand(args as RunArgs, this.client, this.hfToken, this.followOptions);
 					break;
 
 				case 'uv':
-					result = await uvCommand(args as UvArgs, this.client, this.hfToken);
+					result = await uvCommand(args as UvArgs, this.client, this.hfToken, this.followOptions);
 					break;
 
 				case 'ps':

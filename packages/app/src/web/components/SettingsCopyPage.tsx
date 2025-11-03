@@ -1041,8 +1041,6 @@ export function SettingsCopyPage() {
 						</CardContent>
 					</Card>
 
-					<ToolPresetsCard />
-
 					{/* Client Configuration Section */}
 					<Card className="mt-8">
 						<CardHeader className="pb-0">
@@ -1156,7 +1154,8 @@ export function SettingsCopyPage() {
 						</CardContent>
 					</Card>
 
-					{/* What is MCP Card - moved to bottom */}
+					<ToolPresetsCard />
+
 					<Card className="mt-8">
 						<CardHeader className="pb-3">
 							<CardTitle className="text-xl font-semibold">What is MCP?</CardTitle>

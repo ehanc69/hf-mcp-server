@@ -11,6 +11,7 @@ import type { BaseTransport } from './transport/base-transport.js';
 import type { McpApiClient } from './utils/mcp-api-client.js';
 import { formatMetricsForAPI } from '../shared/transport-metrics.js';
 import { ALL_BUILTIN_TOOL_IDS } from '@llmindset/hf-mcp';
+import type { Task } from '@modelcontextprotocol/sdk/types.js';
 import { CORS_ALLOWED_ORIGINS, CORS_EXPOSED_HEADERS } from '../shared/constants.js';
 import { apiMetrics } from './utils/api-metrics.js';
 import { gradioMetrics } from './utils/gradio-metrics.js';
@@ -29,6 +30,7 @@ export class WebServer {
 	private localSharedToolStates: Map<string, boolean> = new Map();
 	private transport?: BaseTransport;
 	private apiClient?: McpApiClient;
+	private taskStore?: { getAllTasks: () => Task[] };
 
 	constructor() {
 		this.app = express() as Express;
@@ -140,6 +142,10 @@ export class WebServer {
 
 	public setApiClient(apiClient: McpApiClient): void {
 		this.apiClient = apiClient;
+	}
+
+	public setTaskStore(taskStore: { getAllTasks: () => Task[] }): void {
+		this.taskStore = taskStore;
 	}
 
 	public getTransportInfo(): TransportInfo {
@@ -343,6 +349,37 @@ export class WebServer {
 
 				// Add Gradio metrics
 				formattedMetrics.gradioMetrics = gradioMetrics.getMetrics();
+
+				// Add task metrics (always present for UI consistency)
+				if (!isStateless && this.taskStore) {
+					let active = 0;
+					let completed = 0;
+					try {
+						const tasks = this.taskStore.getAllTasks();
+						if (Array.isArray(tasks)) {
+							for (const task of tasks) {
+								if (!task || !task.status) continue;
+								switch (task.status) {
+									case 'submitted':
+									case 'working':
+									case 'input_required':
+										active++;
+										break;
+									case 'completed':
+										completed++;
+										break;
+									default:
+										break;
+								}
+							}
+						}
+					} catch (taskError) {
+						logger.warn({ taskError }, 'Failed to collect task metrics');
+					}
+					formattedMetrics.tasks = { active, completed };
+				} else {
+					formattedMetrics.tasks = { active: 0, completed: 0 };
+				}
 
 				// Add temp log status if it was activated or if we need to check current status
 				const extendedMetrics = formattedMetrics as typeof formattedMetrics & { tempLogStatus?: unknown };

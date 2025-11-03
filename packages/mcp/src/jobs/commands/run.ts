@@ -4,11 +4,21 @@ import { createJobSpec } from './utils.js';
 import { fetchJobLogs } from '../sse-handler.js';
 import { resolveUvCommand, UV_DEFAULT_IMAGE } from './uv-utils.js';
 
+export interface JobFollowOptions {
+	logWaitMs?: number;
+	waitUntilComplete?: boolean;
+}
+
 /**
  * Execute the 'run' command
  * Creates and runs a job, optionally waiting for logs
  */
-export async function runCommand(args: RunArgs, client: JobsApiClient, token?: string): Promise<string> {
+export async function runCommand(
+	args: RunArgs,
+	client: JobsApiClient,
+	token?: string,
+	options: JobFollowOptions = {}
+): Promise<string> {
 	// Create job spec from args
 	const jobSpec = createJobSpec({
 		image: args.image,
@@ -39,7 +49,14 @@ To inspect: \`hf_jobs("inspect", {"job_id": "${job.id}"})\``;
 
 	// Not detached - fetch logs
 	const logsUrl = client.getLogsUrl(job.id, job.owner.name);
-	const logResult = await fetchJobLogs(logsUrl, { token, maxDuration: 10000, maxLines: 20 });
+	const waitIndefinitely = options.waitUntilComplete === true;
+	const logWaitMs = options.logWaitMs && options.logWaitMs > 0 ? options.logWaitMs : 10000;
+	const logResult = await fetchJobLogs(logsUrl, {
+		token,
+		maxDuration: waitIndefinitely ? -1 : logWaitMs,
+		maxLines: 20,
+	});
+	const logWaitSeconds = waitIndefinitely ? undefined : Math.max(1, Math.round(logWaitMs / 1000));
 
 	let response = `Job started: ${job.id}\n\n`;
 
@@ -51,8 +68,8 @@ To inspect: \`hf_jobs("inspect", {"job_id": "${job.id}"})\``;
 
 	if (logResult.finished) {
 		response += `Job finished. Full details: ${jobUrl}`;
-	} else if (logResult.truncated) {
-		response += `Log collection stopped after 10s. Job may still be running.\n`;
+	} else if (logResult.truncated && logWaitSeconds !== undefined) {
+		response += `Log collection stopped after ${logWaitSeconds.toString()}s. Job may still be running.\n`;
 		response += `View full logs: ${jobUrl}`;
 	}
 
@@ -63,7 +80,12 @@ To inspect: \`hf_jobs("inspect", {"job_id": "${job.id}"})\``;
  * Execute the 'uv' command
  * Creates and runs a UV-based Python job
  */
-export async function uvCommand(args: UvArgs, client: JobsApiClient, token?: string): Promise<string> {
+export async function uvCommand(
+	args: UvArgs,
+	client: JobsApiClient,
+	token?: string,
+	options: JobFollowOptions = {}
+): Promise<string> {
 	// UV jobs use a standard UV image unless overridden
 	const image = UV_DEFAULT_IMAGE;
 
@@ -82,5 +104,5 @@ export async function uvCommand(args: UvArgs, client: JobsApiClient, token?: str
 		namespace: args.namespace,
 	};
 
-	return runCommand(runArgs, client, token);
+	return runCommand(runArgs, client, token, options);
 }

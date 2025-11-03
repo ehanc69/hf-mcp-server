@@ -225,6 +225,12 @@ export interface TransportMetricsResponse {
 
 	// Gradio tool call metrics
 	gradioMetrics?: GradioToolMetrics;
+
+	// Task metrics (stateful transports)
+	tasks: {
+		active: number;
+		completed: number;
+	};
 }
 
 /**

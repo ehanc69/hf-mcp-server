@@ -33,7 +33,9 @@ export interface SseLogResult {
  * @returns Log result with collected lines and status
  */
 export async function fetchJobLogs(url: string, options: SseLogOptions = {}): Promise<SseLogResult> {
-	const { maxDuration = 10000, maxLines = 20, token } = options;
+	const { maxDuration: requestedDuration, maxLines = 20, token } = options;
+	const waitIndefinitely = typeof requestedDuration === 'number' && requestedDuration < 0;
+	const maxDuration = requestedDuration ?? 10000;
 
 	const logLines: string[] = [];
 	let finished = false;
@@ -41,10 +43,13 @@ export async function fetchJobLogs(url: string, options: SseLogOptions = {}): Pr
 
 	// Create abort controller for timeout
 	const controller = new AbortController();
-	const timeoutId = setTimeout(() => {
-		controller.abort();
-		truncated = true;
-	}, maxDuration);
+	let timeoutId: NodeJS.Timeout | undefined;
+	if (!waitIndefinitely) {
+		timeoutId = setTimeout(() => {
+			controller.abort();
+			truncated = true;
+		}, maxDuration);
+	}
 
 	try {
 		const headers: Record<string, string> = {
@@ -130,7 +135,9 @@ export async function fetchJobLogs(url: string, options: SseLogOptions = {}): Pr
 			throw error;
 		}
 	} finally {
-		clearTimeout(timeoutId);
+		if (timeoutId) {
+			clearTimeout(timeoutId);
+		}
 	}
 
 	// Return last N lines
@@ -139,6 +146,6 @@ export async function fetchJobLogs(url: string, options: SseLogOptions = {}): Pr
 	return {
 		logs: lastLines,
 		finished,
-		truncated: truncated && !finished,
+		truncated: !waitIndefinitely && truncated && !finished,
 	};
 }
