@@ -4,6 +4,11 @@
 	"version": "0.2.39",
 	"type": "module",
 	"packageManager": "pnpm@10.15.1",
+	"pnpm": {
+		"overrides": {
+			"@modelcontextprotocol/sdk": "github:modelcontextprotocol/typescript-sdk#pull/1041/head"
+		}
+	},
 	"scripts": {
 		"dev": "concurrently \"pnpm run --filter=@llmindset/hf-mcp dev\" \"pnpm run --filter=@llmindset/hf-mcp-server dev\"",
 		"dev:sse": "concurrently \"pnpm run --filter=@llmindset/hf-mcp dev\" \"pnpm run --filter=@llmindset/hf-mcp-server dev:sse\"",
