@@ -39,6 +39,11 @@ jobs:
         run: |
           # Get version from package.json
           VERSION=$(node -p "require('./package.json').version")
+          RAW_BRANCH="${GITHUB_REF#refs/heads/}"
+          if [ -z "$RAW_BRANCH" ] || [ "$RAW_BRANCH" = "$GITHUB_REF" ]; then
+            RAW_BRANCH="${GITHUB_HEAD_REF:-manual}"
+          fi
+          BRANCH_NAME=$(echo "$RAW_BRANCH" | sed 's/[^a-zA-Z0-9-]/-/g')
 
           # Generate tag based on trigger
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -47,7 +52,6 @@ jobs:
             TAG="${VERSION}-${SUFFIX}.$(date +%Y%m%d-%H%M%S)"
           else
             # Branch push - use branch name and commit
-            BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | sed 's/[^a-zA-Z0-9-]/-/g')
             SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
             TAG="${VERSION}-${BRANCH_NAME}.${SHORT_SHA}"
           fi
