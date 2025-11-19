@@ -15,6 +15,7 @@ export interface TransportMetrics {
 		anonymous: number;
 		unauthorized?: number; // 401 errors
 		cleaned?: number; // Only for stateful transports
+		uniqueIPs?: number; // Count of unique IP addresses
 	};
 
 	// Session lifecycle metrics (only for stateful transports)
@@ -178,6 +179,7 @@ export interface TransportMetricsResponse {
 		active: number | 'stateless';
 		total: number;
 		cleaned?: number;
+		uniqueIPs?: number;
 	};
 
 	// Session lifecycle metrics (only for stateful transports)
@@ -415,12 +417,14 @@ export class MetricsCounter {
 	private rollingMinute: RollingWindowCounter;
 	private rollingHour: RollingWindowCounter;
 	private rolling3Hours: RollingWindowCounter;
+	private uniqueIPs: Set<string>;
 
 	constructor() {
 		this.metrics = createEmptyMetrics();
 		this.rollingMinute = new RollingWindowCounter(1);
 		this.rollingHour = new RollingWindowCounter(60);
 		this.rolling3Hours = new RollingWindowCounter(180);
+		this.uniqueIPs = new Set();
 	}
 
 	/**
@@ -430,15 +434,18 @@ export class MetricsCounter {
 		// Calculate rates (requests per minute) for each window
 		// Note: All values represent "requests per minute" calculated over their respective windows
 		this.metrics.requests.lastMinute = this.rollingMinute.getCount(); // Requests in last 1 minute (already per minute)
-		
+
 		// For longer windows, divide total count by window size to get per-minute rate
 		const hourCount = this.rollingHour.getCount();
 		const threeHourCount = this.rolling3Hours.getCount();
-		
+
 		// Calculate per-minute rates for the longer windows
 		this.metrics.requests.lastHour = Math.round((hourCount / 60) * 100) / 100; // Requests per minute over last hour
 		this.metrics.requests.last3Hours = Math.round((threeHourCount / 180) * 100) / 100; // Requests per minute over last 3 hours
-			
+
+		// Update unique IP count
+		this.metrics.connections.uniqueIPs = this.uniqueIPs.size;
+
 		return this.metrics;
 	}
 
@@ -742,6 +749,15 @@ export class MetricsCounter {
 	trackSessionDeleted(): void {
 		if (this.metrics.sessions) {
 			this.metrics.sessions.deleted++;
+		}
+	}
+
+	/**
+	 * Track an IP address for unique IP counting
+	 */
+	trackIPAddress(ipAddress?: string): void {
+		if (ipAddress) {
+			this.uniqueIPs.add(ipAddress);
 		}
 	}
 

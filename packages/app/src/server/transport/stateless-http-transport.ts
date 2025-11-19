@@ -161,6 +161,9 @@ export class StatelessHttpTransport extends BaseTransport {
 			return;
 		}
 
+		// Capture IP address
+		const ipAddress = req.ip || req.headers['x-forwarded-for'] as string || req.headers['x-real-ip'] as string;
+
 		// Analytics mode session tracking
 		if (this.analyticsMode) {
 			sessionId = headers['mcp-session-id'];
@@ -168,7 +171,7 @@ export class StatelessHttpTransport extends BaseTransport {
 			if (requestBody?.method === 'initialize') {
 				// Create new session
 				sessionId = randomUUID();
-				this.createAnalyticsSession(sessionId, authResult.userIdentified);
+				this.createAnalyticsSession(sessionId, authResult.userIdentified, ipAddress);
 
 				// Add session ID to response headers
 				res.setHeader('Mcp-Session-Id', sessionId);
@@ -180,6 +183,7 @@ export class StatelessHttpTransport extends BaseTransport {
 					isAuthenticated: authResult.userIdentified,
 					clientName: initClientInfo?.name,
 					clientVersion: initClientInfo?.version,
+					ipAddress,
 					requestJson: requestBody.params || '{}',
 					capabilities: requestBody?.params?.capabilities,
 				});
@@ -492,7 +496,7 @@ export class StatelessHttpTransport extends BaseTransport {
 	}
 
 	// Analytics mode methods
-	private createAnalyticsSession(sessionId: string, isAuthenticated: boolean): void {
+	private createAnalyticsSession(sessionId: string, isAuthenticated: boolean, ipAddress?: string): void {
 		const session: AnalyticsSession = {
 			transport: null,
 			server: null, // Server is null in analytics mode
@@ -502,14 +506,16 @@ export class StatelessHttpTransport extends BaseTransport {
 				lastActivity: new Date(),
 				requestCount: 1,
 				isAuthenticated,
+				ipAddress,
 				capabilities: {},
 			},
 		};
 
 		this.analyticsSessions.set(sessionId, session);
 		this.metrics.trackSessionCreated();
+		this.trackIPAddress(ipAddress);
 
-		logger.debug({ sessionId, isAuthenticated }, 'Analytics session created');
+		logger.debug({ sessionId, isAuthenticated, ipAddress }, 'Analytics session created');
 	}
 
 	private updateAnalyticsSessionActivity(sessionId: string): void {

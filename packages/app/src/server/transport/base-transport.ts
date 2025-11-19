@@ -49,6 +49,7 @@ export interface SessionMetadata {
 	lastActivity: Date;
 	requestCount: number;
 	isAuthenticated: boolean;
+	ipAddress?: string;
 	clientInfo?: {
 		name: string;
 		version: string;
@@ -162,6 +163,13 @@ export abstract class BaseTransport {
 	 */
 	protected trackNewConnection(): void {
 		this.metrics.trackNewConnection();
+	}
+
+	/**
+	 * Track an IP address for unique IP counting
+	 */
+	protected trackIPAddress(ipAddress?: string): void {
+		this.metrics.trackIPAddress(ipAddress);
 	}
 
 	/**

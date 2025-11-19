@@ -24,6 +24,7 @@ export interface QueryLogEntry {
 	parameters: string; // JSON string of parameters for consistent format
 	// SessionMetadata fields
 	isAuthenticated?: boolean;
+	ipAddress?: string | null; // Client IP address
 	// Response information
 	totalResults?: number;
 	resultsShared?: number;
@@ -193,6 +194,7 @@ export function logSearchQuery(
 		isAuthenticated?: boolean;
 		clientName?: string;
 		clientVersion?: string;
+		ipAddress?: string;
 		totalResults?: number;
 		resultsShared?: number;
 		responseCharCount?: number;
@@ -211,6 +213,7 @@ export function logSearchQuery(
 		isAuthenticated: options?.isAuthenticated ?? false,
 		name: options?.clientName || null,
 		version: options?.clientVersion || null,
+		ipAddress: options?.ipAddress || null,
 		totalResults: options?.totalResults,
 		resultsShared: options?.resultsShared,
 		responseCharCount: options?.responseCharCount,
@@ -229,6 +232,7 @@ export function logPromptQuery(
 		isAuthenticated?: boolean;
 		clientName?: string;
 		clientVersion?: string;
+		ipAddress?: string;
 		totalResults?: number;
 		resultsShared?: number;
 		responseCharCount?: number;
@@ -247,6 +251,7 @@ export function logPromptQuery(
 		isAuthenticated: options?.isAuthenticated ?? false,
 		name: options?.clientName || null,
 		version: options?.clientVersion || null,
+		ipAddress: options?.ipAddress || null,
 		totalResults: options?.totalResults,
 		resultsShared: options?.resultsShared,
 		responseCharCount: options?.responseCharCount,
@@ -264,6 +269,7 @@ export function logSystemEvent(
 		isAuthenticated?: boolean;
 		clientName?: string;
 		clientVersion?: string;
+		ipAddress?: string;
 		requestJson?: unknown;
 		capabilities?: unknown;
 	}
@@ -298,6 +304,7 @@ export function logSystemEvent(
 			name: options?.clientName || capabilitiesName || null,
 			version: options?.clientVersion || capabilitiesVersion || null,
 			authorized: options?.isAuthenticated ?? false, // renamed from isAuthenticated
+			ipAddress: options?.ipAddress || null,
 
 			// Full request data for context
 			capabilities: options?.capabilities ? JSON.stringify(options.capabilities) : null,

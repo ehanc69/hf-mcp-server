@@ -100,11 +100,15 @@ export class SseTransport extends StatefulTransport<SSEConnection> {
 
 			logger.info({ sessionId }, 'New SSE connection established');
 
+			// Capture IP address
+			const ipAddress = req.ip || req.headers['x-forwarded-for'] as string || req.headers['x-real-ip'] as string;
+
 			// Log system initialize event
 			const requestBody = req.body as { params?: { capabilities?: unknown } } | undefined;
 			logSystemEvent('initialize', sessionId, {
 				clientSessionId: sessionId,
 				isAuthenticated,
+				ipAddress,
 				requestJson: req.body ?? {},
 				capabilities: requestBody?.params?.capabilities,
 			});
@@ -123,6 +127,7 @@ export class SseTransport extends StatefulTransport<SSEConnection> {
 					lastActivity: new Date(),
 					requestCount: 0,
 					isAuthenticated: authResult.shouldContinue && !!headers['authorization'],
+					ipAddress,
 					capabilities: {},
 				},
 				cleaningUp: false,
@@ -132,6 +137,7 @@ export class SseTransport extends StatefulTransport<SSEConnection> {
 
 			// Track the session creation for metrics
 			this.trackSessionCreated(sessionId);
+			this.trackIPAddress(ipAddress);
 
 			// Set up heartbeat and connection event handlers
 			this.startHeartbeat(sessionId, res);
