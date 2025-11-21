@@ -1,16 +1,40 @@
 import type { ToolResult } from '../types/tool-result.js';
 import type { ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
-import { spaceArgsSchema, OPERATION_NAMES, type OperationName, type SpaceArgs, type InvokeResult } from './types.js';
+import {
+	spaceArgsSchema,
+	discoverArgsSchema,
+	OPERATION_NAMES,
+	DISCOVER_OPERATION_NAMES,
+	type OperationName,
+	type DiscoverOperationName,
+	type SpaceArgs,
+	type InvokeResult,
+} from './types.js';
 import { findSpaces as findSpaces } from './commands/dynamic-find.js';
+import { discoverSpaces } from './commands/discover.js';
 import { viewParameters } from './commands/view-parameters.js';
 import { invokeSpace } from './commands/invoke.js';
+
+/**
+ * Check if dynamic space mode is enabled
+ */
+export function isDynamicSpaceMode(): boolean {
+	return !!process.env.DYNAMIC_SPACE_DATA;
+}
+
+/**
+ * Get the dynamic space data URL
+ */
+export function getDynamicSpaceDataUrl(): string | undefined {
+	return process.env.DYNAMIC_SPACE_DATA;
+}
 
 // Re-export types (including InvokeResult for external use)
 export * from './types.js';
 
 /**
- * Usage instructions when tool is called with no operation
+ * Usage instructions when tool is called with no operation (standard mode)
  */
 const USAGE_INSTRUCTIONS = `# Gradio Space Interaction
 
@@ -87,9 +111,81 @@ For parameters that accept files (FileData types):
 `;
 
 /**
- * Space tool configuration
+ * Usage instructions for discover mode (when DYNAMIC_SPACE_DATA is set)
  */
-export const DYNAMIC_SPACE_TOOL_CONFIG = {
+const DISCOVER_USAGE_INSTRUCTIONS = `# Gradio Space Interaction
+
+Interact with curated Gradio MCP Spaces. Discover available spaces, view parameter schemas, and invoke spaces.
+
+## Supported Schema Types
+
+✅ **Simple types** (supported):
+- Strings, numbers, booleans
+- Enums (predefined value sets)
+- Arrays of primitives
+- Shallow objects (one level deep)
+- FileData (as URL strings)
+
+## Available Operations
+
+### Discover
+List all available MCP-enabled Spaces.
+
+**Example:**
+\`\`\`json
+{
+  "operation": "discover"
+}
+\`\`\`
+
+### view_parameters
+Display the parameter schema for a space's first tool.
+
+**Example:**
+\`\`\`json
+{
+  "operation": "view_parameters",
+  "space_name": "evalstate/FLUX1_schnell"
+}
+\`\`\`
+
+### invoke
+Execute a space's first tool with provided parameters.
+
+**Example:**
+\`\`\`json
+{
+  "operation": "invoke",
+  "space_name": "evalstate/FLUX1_schnell",
+  "parameters": "{\\"prompt\\": \\"a cute cat\\", \\"num_steps\\": 4}"
+}
+\`\`\`
+
+## Workflow
+
+1. **Discover Spaces** - Use \`discover\` to see all available spaces
+2. **Inspect Parameters** - Use \`view_parameters\` to see what a space accepts
+3. **Invoke the Space** - Use \`invoke\` with the required parameters
+
+## File Handling
+
+For parameters that accept files (FileData types):
+- Provide a publicly accessible URL (http:// or https://)
+- Example: \`{"image": "https://example.com/photo.jpg"}\`
+- Outputs from one tool may be used as inputs to another
+
+## Tips
+
+- The tool automatically applies default values for optional parameters
+- Unknown parameters generate warnings but are still passed through (permissive inputs)
+- Enum parameters show all allowed values in view_parameters
+- Required parameters are clearly marked and validated
+`;
+
+/**
+ * Space tool configuration (standard mode with find)
+ */
+const STANDARD_TOOL_CONFIG = {
 	name: 'dynamic_space',
 	description:
 		'Find (semantic/task search), inspect (view parameter schema) and dynamically invoke Gradio MCP Spaces to perform various ML Tasks. ' +
@@ -101,6 +197,34 @@ export const DYNAMIC_SPACE_TOOL_CONFIG = {
 		openWorldHint: true,
 	},
 } as const;
+
+/**
+ * Space tool configuration (discover mode with curated list)
+ */
+const DISCOVER_TOOL_CONFIG = {
+	name: 'dynamic_space',
+	description:
+		'Discover available spaces, inspect (view parameter schema) and invoke Gradio MCP Spaces to perform various ML Tasks. ' +
+		'Call with no operation for full usage instructions.',
+	schema: discoverArgsSchema,
+	annotations: {
+		title: 'Dynamically use Gradio Applications',
+		readOnlyHint: false,
+		openWorldHint: true,
+	},
+} as const;
+
+/**
+ * Get the appropriate tool config based on mode
+ */
+export function getDynamicSpaceToolConfig() {
+	return isDynamicSpaceMode() ? DISCOVER_TOOL_CONFIG : STANDARD_TOOL_CONFIG;
+}
+
+/**
+ * Legacy export for backwards compatibility
+ */
+export const DYNAMIC_SPACE_TOOL_CONFIG = STANDARD_TOOL_CONFIG;
 
 /**
  * Space tool implementation
@@ -122,35 +246,62 @@ export class SpaceTool {
 		extra?: RequestHandlerExtra<ServerRequest, ServerNotification>
 	): Promise<InvokeResult | ToolResult> {
 		const requestedOperation = params.operation;
+		const dynamicMode = isDynamicSpaceMode();
 
 		// If no operation provided, return usage instructions
 		if (!requestedOperation) {
 			return {
-				formatted: USAGE_INSTRUCTIONS,
+				formatted: dynamicMode ? DISCOVER_USAGE_INSTRUCTIONS : USAGE_INSTRUCTIONS,
 				totalResults: 1,
 				resultsShared: 1,
 			};
 		}
 
-		// Validate operation
+		// Validate operation based on mode
 		const normalizedOperation = requestedOperation.toLowerCase();
-		if (!isOperationName(normalizedOperation)) {
-			return {
-				formatted: `Unknown operation: "${requestedOperation}"
+
+		if (dynamicMode) {
+			if (!isDiscoverOperationName(normalizedOperation)) {
+				return {
+					formatted: `Unknown operation: "${requestedOperation}"
+Available operations: ${DISCOVER_OPERATION_NAMES.join(', ')}
+
+Call this tool with no operation for full usage instructions.`,
+					totalResults: 0,
+					resultsShared: 0,
+					isError: true,
+				};
+			}
+		} else {
+			if (!isOperationName(normalizedOperation)) {
+				return {
+					formatted: `Unknown operation: "${requestedOperation}"
 Available operations: ${OPERATION_NAMES.join(', ')}
 
 Call this tool with no operation for full usage instructions.`,
-				totalResults: 0,
-				resultsShared: 0,
-				isError: true,
-			};
+					totalResults: 0,
+					resultsShared: 0,
+					isError: true,
+				};
+			}
 		}
 
 		// Execute operation
 		try {
 			switch (normalizedOperation) {
 				case 'find':
+					if (dynamicMode) {
+						return {
+							formatted: `The "find" operation is not available in this mode. Use "discover" instead.`,
+							totalResults: 0,
+							resultsShared: 0,
+							isError: true,
+						};
+					}
 					return await this.handleFind(params);
+
+				case 'discover':
+					return await this.handleDiscover();
 
 				case 'view_parameters':
 					return await this.handleViewParameters(params);
@@ -182,6 +333,22 @@ Call this tool with no operation for full usage instructions.`,
 	 */
 	private async handleFind(params: SpaceArgs): Promise<ToolResult> {
 		return await findSpaces(params.search_query, params.limit, this.hfToken);
+	}
+
+	/**
+	 * Handle discover operation
+	 */
+	private async handleDiscover(): Promise<ToolResult> {
+		const dataUrl = getDynamicSpaceDataUrl();
+		if (!dataUrl) {
+			return {
+				formatted: `Error: DYNAMIC_SPACE_DATA environment variable is not set.`,
+				totalResults: 0,
+				resultsShared: 0,
+				isError: true,
+			};
+		}
+		return await discoverSpaces(dataUrl);
 	}
 
 	/**
@@ -266,4 +433,11 @@ Use "view_parameters" to see what parameters this space accepts.`,
  */
 function isOperationName(value: string): value is OperationName {
 	return (OPERATION_NAMES as readonly string[]).includes(value);
+}
+
+/**
+ * Type guard for discover operation names
+ */
+function isDiscoverOperationName(value: string): value is DiscoverOperationName {
+	return (DISCOVER_OPERATION_NAMES as readonly string[]).includes(value);
 }

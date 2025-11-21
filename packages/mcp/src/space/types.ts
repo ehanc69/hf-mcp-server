@@ -1,13 +1,19 @@
 import { z } from 'zod';
 
 /**
- * Operations supported by the space tool
+ * Operations supported by the space tool (standard mode)
  */
 export const OPERATION_NAMES = ['find', 'view_parameters', 'invoke'] as const;
 export type OperationName = (typeof OPERATION_NAMES)[number];
 
 /**
- * Zod schema for operation arguments
+ * Operations supported by the space tool (discover mode)
+ */
+export const DISCOVER_OPERATION_NAMES = ['discover', 'view_parameters', 'invoke'] as const;
+export type DiscoverOperationName = (typeof DISCOVER_OPERATION_NAMES)[number];
+
+/**
+ * Zod schema for operation arguments (standard mode with find)
  */
 export const spaceArgsSchema = z.object({
 	operation: z.enum(OPERATION_NAMES).optional().describe('Operation to execute.'),
@@ -28,6 +34,22 @@ export const spaceArgsSchema = z.object({
 });
 
 export type SpaceArgs = z.infer<typeof spaceArgsSchema>;
+
+/**
+ * Zod schema for operation arguments (discover mode with curated list)
+ */
+export const discoverArgsSchema = z.object({
+	operation: z.enum(DISCOVER_OPERATION_NAMES).optional().describe('Operation to execute.'),
+	space_name: z
+		.string()
+		.optional()
+		.describe(
+			'The Hugging Face space ID (format: "username/space-name"). Required for view_parameters and invoke operations.'
+		),
+	parameters: z.string().optional().describe('For invoke operation: JSON object string of parameters'),
+});
+
+export type DiscoverArgs = z.infer<typeof discoverArgsSchema>;
 
 /**
  * Parameter information extracted from schema
